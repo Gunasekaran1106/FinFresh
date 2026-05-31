@@ -1,14 +1,15 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 
 from app.core.config import settings
 from app.database import connect_db, close_db
-
-# Routes will be imported here in later phases
-# from app.routes import auth, transactions, dashboard
+from app.services.auth_service import ensure_user_indexes
+from app.routes import auth
 
 logging.basicConfig(
     level=logging.DEBUG if settings.debug else logging.INFO,
@@ -18,19 +19,22 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# Lifespan — startup & shutdown
+# ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Async context manager for application startup and shutdown.
-    FastAPI's recommended replacement for on_event decorators.
-    """
     logger.info("Starting up %s v%s …", settings.app_name, settings.app_version)
     await connect_db()
+    await ensure_user_indexes()          # idempotent — safe to run every boot
     yield
     logger.info("Shutting down …")
     await close_db()
 
 
+# ---------------------------------------------------------------------------
+# App factory
+# ---------------------------------------------------------------------------
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
@@ -41,18 +45,49 @@ app = FastAPI(
 )
 
 # ---------------------------------------------------------------------------
-# CORS — tighten allowed_origins for production
+# CORS
 # ---------------------------------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],          # Replace with exact frontend origin in prod
+    allow_origins=["*"],          # tighten to exact origin(s) in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # ---------------------------------------------------------------------------
-# Health check — always available, no auth required
+# Global exception handlers
+# ---------------------------------------------------------------------------
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+):
+    """
+    Return a clean 422 body that surfaces every field error in one shot
+    rather than FastAPI's deeply nested default structure.
+    """
+    errors = []
+    for error in exc.errors():
+        field = " → ".join(str(loc) for loc in error["loc"] if loc != "body")
+        errors.append({"field": field or "request", "message": error["msg"]})
+
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": "Validation failed.", "errors": errors},
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """Catch-all so unhandled errors never leak stack traces to the client."""
+    logger.exception("Unhandled exception on %s %s", request.method, request.url)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "An internal server error occurred."},
+    )
+
+# ---------------------------------------------------------------------------
+# Health check
 # ---------------------------------------------------------------------------
 @app.get("/health", tags=["Health"])
 async def health_check():
@@ -62,10 +97,11 @@ async def health_check():
         "version": settings.app_version,
     }
 
+# ---------------------------------------------------------------------------
+# Routers
+# ---------------------------------------------------------------------------
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 
-# ---------------------------------------------------------------------------
-# Routers — uncomment as phases are completed
-# ---------------------------------------------------------------------------
-# app.include_router(auth.router,         prefix="/api/v1/auth",         tags=["Auth"])
+# Uncomment as phases are completed:
 # app.include_router(transactions.router, prefix="/api/v1/transactions", tags=["Transactions"])
 # app.include_router(dashboard.router,    prefix="/api/v1/dashboard",    tags=["Dashboard"])
