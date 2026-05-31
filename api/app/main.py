@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.database import connect_db, close_db
 from app.services.auth_service import ensure_user_indexes
 from app.services.transaction_service import ensure_transaction_indexes
-from app.routes import auth, transactions
+from app.routes import auth, transactions, dashboard
 
 logging.basicConfig(
     level=logging.DEBUG if settings.debug else logging.INFO,
@@ -97,10 +97,8 @@ async def health_check():
 
 
 # ---------------------------------------------------------------------------
-# Routers
+# Routers — all three registered
 # ---------------------------------------------------------------------------
 app.include_router(auth.router,         prefix="/api/v1/auth",         tags=["Auth"])
 app.include_router(transactions.router, prefix="/api/v1/transactions", tags=["Transactions"])
-
-# Uncomment in Phase 5:
-# app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboard"])
+app.include_router(dashboard.router,    prefix="/api/v1/dashboard",    tags=["Dashboard"])
