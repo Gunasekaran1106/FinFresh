@@ -9,7 +9,8 @@ from fastapi.exceptions import RequestValidationError
 from app.core.config import settings
 from app.database import connect_db, close_db
 from app.services.auth_service import ensure_user_indexes
-from app.routes import auth
+from app.services.transaction_service import ensure_transaction_indexes
+from app.routes import auth, transactions
 
 logging.basicConfig(
     level=logging.DEBUG if settings.debug else logging.INFO,
@@ -26,7 +27,8 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("Starting up %s v%s …", settings.app_name, settings.app_version)
     await connect_db()
-    await ensure_user_indexes()          # idempotent — safe to run every boot
+    await ensure_user_indexes()
+    await ensure_transaction_indexes()
     yield
     logger.info("Shutting down …")
     await close_db()
@@ -62,10 +64,6 @@ app.add_middleware(
 async def validation_exception_handler(
     request: Request, exc: RequestValidationError
 ):
-    """
-    Return a clean 422 body that surfaces every field error in one shot
-    rather than FastAPI's deeply nested default structure.
-    """
     errors = []
     for error in exc.errors():
         field = " → ".join(str(loc) for loc in error["loc"] if loc != "body")
@@ -79,12 +77,12 @@ async def validation_exception_handler(
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
-    """Catch-all so unhandled errors never leak stack traces to the client."""
     logger.exception("Unhandled exception on %s %s", request.method, request.url)
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"detail": "An internal server error occurred."},
     )
+
 
 # ---------------------------------------------------------------------------
 # Health check
@@ -97,11 +95,12 @@ async def health_check():
         "version": settings.app_version,
     }
 
+
 # ---------------------------------------------------------------------------
 # Routers
 # ---------------------------------------------------------------------------
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
+app.include_router(auth.router,         prefix="/api/v1/auth",         tags=["Auth"])
+app.include_router(transactions.router, prefix="/api/v1/transactions", tags=["Transactions"])
 
-# Uncomment as phases are completed:
-# app.include_router(transactions.router, prefix="/api/v1/transactions", tags=["Transactions"])
-# app.include_router(dashboard.router,    prefix="/api/v1/dashboard",    tags=["Dashboard"])
+# Uncomment in Phase 5:
+# app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboard"])
