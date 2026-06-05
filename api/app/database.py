@@ -3,6 +3,8 @@ from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 from app.core.config import settings
 
+print("MongoDB URL:", settings.mongodb_url)
+
 logger = logging.getLogger(__name__)
 
 # Module-level client — shared across the application lifetime
@@ -34,9 +36,28 @@ async def connect_db() -> None:
         _database = _client[settings.database_name]
         logger.info("Connected to MongoDB Atlas — database: %s", settings.database_name)
 
+        # Create indexes for optimal query performance
+        await _create_indexes()
+
     except (ConnectionFailure, ServerSelectionTimeoutError) as exc:
         logger.critical("MongoDB connection failed: %s", exc)
         raise RuntimeError(f"Could not connect to MongoDB: {exc}") from exc
+
+
+async def _create_indexes() -> None:
+    """Create MongoDB indexes for transactions collection."""
+    db = _database
+    transactions_col = db["transactions"]
+
+    try:
+        # Compound index on userId and date for financial health queries
+        await transactions_col.create_index(
+            [("user_id", 1), ("date", -1)],
+            name="idx_user_date",
+        )
+        logger.info("Created index: user_id (ascending), date (descending)")
+    except Exception as exc:
+        logger.warning("Failed to create index: %s", exc)
 
 
 async def close_db() -> None:
