@@ -21,7 +21,7 @@ from app.middleware.error_handler import (
 )
 from app.services.auth_service import ensure_user_indexes
 from app.services.transaction_service import ensure_transaction_indexes
-from app.routes import auth, transactions, dashboard
+from app.routes import auth, transactions, dashboard, financial_health, summary
 
 logging.basicConfig(
     level=logging.DEBUG if settings.debug else logging.INFO,
@@ -91,6 +91,8 @@ async def health_check():
 # ---------------------------------------------------------------------------
 # Routers
 # ---------------------------------------------------------------------------
-app.include_router(auth.router,         prefix="/api/v1/auth",         tags=["Auth"])
-app.include_router(transactions.router, prefix="/api/v1/transactions", tags=["Transactions"])
-app.include_router(dashboard.router,    prefix="/api/v1/dashboard",    tags=["Dashboard"])
+app.include_router(auth.router,              prefix="/api/v1/auth",              tags=["Auth"])
+app.include_router(transactions.router,      prefix="/api/v1/transactions",      tags=["Transactions"])
+app.include_router(dashboard.router,         prefix="/api/v1/dashboard",         tags=["Dashboard"])
+app.include_router(financial_health.router,  prefix="/api/v1",                   tags=["Financial Health"])
+app.include_router(summary.router,           prefix="/api/v1",                   tags=["Summary"])
