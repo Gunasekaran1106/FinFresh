@@ -34,6 +34,8 @@ async def setup_test_db():
     test DB instead of the production DB.
     """
     import app.database as db_module
+    from app.services.auth_service import ensure_user_indexes
+    from app.services.transaction_service import ensure_transaction_indexes
 
     client = AsyncIOMotorClient(
         settings.mongodb_url,
@@ -44,6 +46,10 @@ async def setup_test_db():
     db_module._client = client
     db_module._database = client[TEST_DB_NAME]
     print("TEST DB INITIALIZED:", TEST_DB_NAME)
+
+    # Re-create unique indexes on the test DB
+    await ensure_user_indexes()
+    await ensure_transaction_indexes()
 
     yield
 

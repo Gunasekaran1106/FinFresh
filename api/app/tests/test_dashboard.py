@@ -57,11 +57,11 @@ class TestDashboardAPI:
         )
         assert resp.status_code == 200
         body = resp.json()
-        assert body["total_income"] == 0.0
-        assert body["total_expense"] == 0.0
-        assert body["current_balance"] == 0.0
-        assert body["financial_health_score"] == 0
-        assert body["transaction_count"] == 0
+        assert body["income"] == 0.0
+        assert body["expense"] == 0.0
+        assert body["savings"] == 0.0
+        assert body["savingsRate"] == 0.0
+        assert body["categories"] == {}
 
     async def test_dashboard_with_transactions(
         self, client: AsyncClient, auth_headers: dict
@@ -78,13 +78,11 @@ class TestDashboardAPI:
         )
         assert resp.status_code == 200
         body = resp.json()
-        assert body["total_income"] == 5000.0
-        assert body["total_expense"] == 1800.0
-        assert body["current_balance"] == 3200.0
-        assert body["income_transaction_count"] == 1
-        assert body["expense_transaction_count"] == 1
-        assert body["transaction_count"] == 2
-        assert 0 <= body["financial_health_score"] <= 100
+        assert body["income"] == 5000.0
+        assert body["expense"] == 1800.0
+        assert body["savings"] == 3200.0
+        assert body["savingsRate"] == 64.0
+        assert body["categories"] == {"Salary": 5000.0, "Rent": 1800.0}
 
     async def test_dashboard_no_token_returns_401(self, client: AsyncClient):
         resp = await client.get("/api/v1/dashboard/summary")
@@ -110,5 +108,5 @@ class TestDashboardAPI:
         resp = await client.get(
             "/api/v1/dashboard/summary", headers=charlie_headers
         )
-        assert resp.json()["total_income"] == 0.0
-        assert resp.json()["transaction_count"] == 0
+        assert resp.json()["income"] == 0.0
+        assert resp.json()["categories"] == {}

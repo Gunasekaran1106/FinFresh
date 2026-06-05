@@ -33,7 +33,6 @@ class TestCreateTransaction:
         assert body["amount"] == 5000.00
         assert body["category"] == "Salary"
         assert "id" in body
-        assert "user_id" in body
 
     async def test_create_expense_success(
         self, client: AsyncClient, auth_headers: dict
@@ -88,8 +87,8 @@ class TestListTransactions:
         resp = await client.get("/api/v1/transactions/", headers=auth_headers)
         assert resp.status_code == 200
         body = resp.json()
-        assert body["total"] == 2
-        assert len(body["transactions"]) == 2
+        assert body["pagination"]["total"] == 2
+        assert len(body["data"]) == 2
 
     async def test_filter_by_income(
         self, client: AsyncClient, auth_headers: dict
@@ -102,8 +101,8 @@ class TestListTransactions:
         )
         assert resp.status_code == 200
         body = resp.json()
-        assert body["total"] == 1
-        assert body["transactions"][0]["type"] == "income"
+        assert body["pagination"]["total"] == 1
+        assert body["data"][0]["type"] == "income"
 
     async def test_filter_by_expense(
         self, client: AsyncClient, auth_headers: dict
@@ -115,7 +114,7 @@ class TestListTransactions:
             "/api/v1/transactions/?type=expense", headers=auth_headers
         )
         assert resp.status_code == 200
-        assert resp.json()["total"] == 1
+        assert resp.json()["pagination"]["total"] == 1
 
     async def test_pagination(
         self, client: AsyncClient, auth_headers: dict
@@ -132,15 +131,15 @@ class TestListTransactions:
         )
         assert resp.status_code == 200
         body = resp.json()
-        assert body["total"] == 5
-        assert len(body["transactions"]) == 2
+        assert body["pagination"]["total"] == 5
+        assert len(body["data"]) == 2
 
     async def test_empty_list_for_new_user(
         self, client: AsyncClient, auth_headers: dict
     ):
         resp = await client.get("/api/v1/transactions/", headers=auth_headers)
         assert resp.status_code == 200
-        assert resp.json()["total"] == 0
+        assert resp.json()["pagination"]["total"] == 0
 
     async def test_data_isolation_between_users(
         self, client: AsyncClient, auth_headers: dict
@@ -165,7 +164,7 @@ class TestListTransactions:
 
         # Bob must see zero transactions
         resp = await client.get("/api/v1/transactions/", headers=bob_headers)
-        assert resp.json()["total"] == 0
+        assert resp.json()["pagination"]["total"] == 0
 
 
 class TestDeleteTransaction:
@@ -184,7 +183,7 @@ class TestDeleteTransaction:
         assert del_resp.json()["transaction_id"] == txn_id
 
         list_resp = await client.get("/api/v1/transactions/", headers=auth_headers)
-        assert list_resp.json()["total"] == 0
+        assert list_resp.json()["pagination"]["total"] == 0
 
     async def test_delete_nonexistent_returns_404(
         self, client: AsyncClient, auth_headers: dict
