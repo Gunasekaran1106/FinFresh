@@ -22,12 +22,12 @@ class AppError(Exception):
 
 class DuplicateEmailError(AppError):
     """Raised when registration is attempted with an already-registered email."""
-    default_message = "An account with this email already exists."
+    default_message = "Email already exists"
 
 
 class InvalidCredentialsError(AppError):
     """Raised when email/password combination does not match any account."""
-    default_message = "Invalid email or password."
+    default_message = "Invalid credentials"
 
 
 class UserNotFoundError(AppError):

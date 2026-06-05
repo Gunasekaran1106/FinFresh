@@ -19,6 +19,10 @@ router = APIRouter()
     response_model=TransactionResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Add a new transaction",
+    responses={
+        400: {"description": "Validation error or invalid input"},
+        401: {"description": "Unauthorized"},
+    },
 )
 async def add_transaction(
     payload: TransactionCreateRequest,
@@ -33,21 +37,27 @@ async def add_transaction(
     response_model=TransactionListResponse,
     status_code=status.HTTP_200_OK,
     summary="List transactions with optional filtering and pagination",
+    responses={
+        400: {"description": "Invalid query parameters"},
+        401: {"description": "Unauthorized"},
+    },
 )
 async def list_transactions(
     current_user: CurrentUser,
-    type: Optional[Literal["income", "expense"]] = Query(
+    type: Optional[Literal["income", "expense", "investment", "debt"]] = Query(
         default=None,
         description="Filter by transaction type.",
     ),
-    skip: int = Query(default=0, ge=0, description="Pagination offset."),
+    category: Optional[str] = Query(default=None, description="Filter by category name"),
+    page: int = Query(default=1, ge=1, description="Page number (1-based)."),
     limit: int = Query(default=20, ge=1, le=100, description="Page size (max 100)."),
 ):
     # DatabaseError → 500 via global handler
     return await get_transactions(
         user_id=current_user.id,
         transaction_type=type,
-        skip=skip,
+        category=category,
+        page=page,
         limit=limit,
     )
 
@@ -57,6 +67,11 @@ async def list_transactions(
     response_model=TransactionDeleteResponse,
     status_code=status.HTTP_200_OK,
     summary="Delete a transaction by ID",
+    responses={
+        400: {"description": "Invalid transaction ID format"},
+        401: {"description": "Unauthorized"},
+        404: {"description": "Transaction not found or does not belong to user"},
+    },
 )
 async def remove_transaction(
     transaction_id: str,

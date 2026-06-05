@@ -37,15 +37,17 @@ def _json(status_code: int, detail: str) -> JSONResponse:
 # ---------------------------------------------------------------------------
 
 async def duplicate_email_handler(request: Request, exc: DuplicateEmailError):
-    return _json(status.HTTP_409_CONFLICT, exc.message)
+    # Match assignment requirement: return 400 with message "Email already exists"
+    return _json(status.HTTP_400_BAD_REQUEST, "Email already exists")
 
 
 async def invalid_credentials_handler(
     request: Request, exc: InvalidCredentialsError
 ):
+    # Standardised error message per spec
     return JSONResponse(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        content={"detail": exc.message},
+        content={"detail": "Invalid credentials"},
         headers={"WWW-Authenticate": "Bearer"},
     )
 

@@ -32,7 +32,6 @@ def _get_collection():
 def _doc_to_response(doc: TransactionDocument) -> TransactionResponse:
     return TransactionResponse(
         id=doc.id,
-        user_id=doc.user_id,
         type=doc.type,
         category=doc.category,
         amount=doc.amount,
@@ -96,8 +95,9 @@ async def create_transaction(
 
 async def get_transactions(
     user_id: str,
-    transaction_type: Optional[Literal["income", "expense"]] = None,
-    skip: int = 0,
+    transaction_type: Optional[Literal["income", "expense", "investment", "debt"]] = None,
+    category: Optional[str] = None,
+    page: int = 1,
     limit: int = 50,
 ) -> TransactionListResponse:
     col = _get_collection()
@@ -106,9 +106,12 @@ async def get_transactions(
     query: dict = {"user_id": user_id}
     if transaction_type is not None:
         query["type"] = transaction_type
+    if category:
+        query["category"] = category
 
     try:
         total = await col.count_documents(query)
+        skip = max((page - 1) * limit, 0)
         cursor = (
             col.find(query)
             .sort([("date", DESCENDING), ("created_at", DESCENDING)])
@@ -124,7 +127,14 @@ async def get_transactions(
         _doc_to_response(TransactionDocument.from_mongo(raw))
         for raw in raw_docs
     ]
-    return TransactionListResponse(total=total, transactions=transactions)
+    return TransactionListResponse(
+        data=transactions,
+        pagination={
+            "page": page,
+            "limit": limit,
+            "total": total,
+        },
+    )
 
 
 async def delete_transaction(

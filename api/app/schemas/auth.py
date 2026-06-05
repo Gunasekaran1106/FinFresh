@@ -55,3 +55,10 @@ class RegisterResponse(BaseModel):
     message: str = "User registered successfully."
     user: UserResponse
     token: TokenResponse
+
+
+class LoginResponse(BaseModel):
+    """Returned after successful login."""
+    message: str = "Login successful."
+    user: UserResponse
+    token: TokenResponse
